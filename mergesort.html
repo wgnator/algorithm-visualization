@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        border: 1px solid black;
+      }
+      .container {
+        display: flex;
+        width: 700px;
+        flex-direction: column;
+      }
+      div[class*='level'] {
+        display: flex;
+        width: 100%;
+        height: 30px;
+        flex-direction: row;
+        justify-content: center;
+      }
+      .block {
+        display: flex;
+        height: 100%;
+        flex-direction: row;
+        justify-content: center;
+      }
+      .element {
+        height: 100%;
+        font-size: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div>Enter an array to sort:</div>
+    <form onsubmit="return false;">
+      <input type="text" id="array" />
+      <button type="submit" onclick="calculate()" id="button">submit</button>
+    </form>
+    <div class="answer"></div>
+    <div class="container"></div>
+  </body>
+  <script>
+    let initialN;
+
+    function calculate() {
+      document.querySelectorAll('.container *').forEach((e) => e.remove());
+      const inputArray = JSON.parse(document.querySelector('#array').value);
+      initialN = inputArray.length;
+
+      createLevelDivs(1 + Math.ceil(Math.log2(initialN)) * 2);
+      document.querySelector('.answer').textContent = mergeSort(inputArray, 0);
+    }
+
+    function createLevelDivs(levels) {
+      for (i = 0; i < levels; i++) {
+        const div = document.createElement('div');
+        div.className = 'level_' + i;
+        document.querySelector('.container').append(div);
+      }
+    }
+    function mergeSort(array, level) {
+      // const numberOfBlocks = Math.floor(initialN / array.length);
+      console.log(level);
+      visualize(array, level);
+      if (array.length > 1) {
+        const pointer = Math.floor(array.length / 2);
+        const a = mergeSort(array.slice(0, pointer), level + 1);
+        const b = mergeSort(array.slice(pointer, array.length), level + 1);
+        let pointerA = 0,
+          pointerB = 0,
+          mergedArr = [];
+        while (mergedArr.length != a.length + b.length) {
+          if (a[pointerA] <= b[pointerB]) {
+            mergedArr.push(a[pointerA]);
+            pointerA++;
+            if (pointerA == a.length && pointerB != b.length)
+              mergedArr.push(...b.slice(pointerB));
+          } else {
+            mergedArr.push(b[pointerB]);
+            pointerB++;
+            if (pointerA != a.length && pointerB == b.length)
+              mergedArr.push(...a.slice(pointerA));
+          }
+        }
+
+        visualize(mergedArr, Math.ceil(Math.log2(initialN)) * 2 - level);
+        console.log(array, a, b, mergedArr, level);
+        return mergedArr;
+      } else return array;
+    }
+
+    function visualize(array, level) {
+      const block = document.createElement('div');
+      block.className = 'block';
+      const blockWidth = 650 / (initialN / array.length);
+      // console.log(initialN, array.length, numberOfBlocks);
+      block.style.cssText = `width: ${blockWidth}px`;
+      for (e of array) {
+        const element = document.createElement('div');
+        element.className = 'element';
+        element.innerText = e;
+        element.style.width = 600 / initialN;
+        block.append(element);
+      }
+      document.querySelector('.level_' + level).append(block);
+    }
+  </script>
+</html>

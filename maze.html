@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      * {
+        font-family: 'Courier New', Courier, monospace;
+        box-sizing: border-box;
+      }
+
+      .title {
+        height: 40px;
+        background-color: lightslategray;
+        color: #ffff;
+        text-align: center;
+        padding: 3px;
+        margin-bottom: 30px;
+      }
+
+      .input_wrapper {
+        width: 600px;
+        margin: auto;
+        display: flex;
+        justify-content: space-evenly;
+        margin-bottom: 30px;
+      }
+
+      label {
+        font-size: 20px;
+        font-weight: bold;
+        align-self: center;
+      }
+
+      #size_input {
+        width: 100px;
+        height: 50px;
+      }
+
+      .button {
+        height: 50px;
+        font-size: 20px;
+        font-weight: bold;
+        border-width: 5px;
+        background-color: mediumslateblue;
+        color: #ffff;
+      }
+
+      .container {
+        border: black 3px solid;
+        width: 600px;
+        height: 600px;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        margin: auto;
+      }
+
+      .visited {
+        background-color: chartreuse;
+      }
+
+      .highlight {
+        background-color: brown;
+      }
+
+      .result_path {
+        background-color: mediumvioletred;
+      }
+
+      .shake {
+        animation: shake 0.5s linear;
+      }
+
+      .yes {
+        text-align: center;
+        font-size: 30px;
+
+        animation: yes 0.7s linear;
+      }
+
+      @keyframes shake {
+        10%,
+        90% {
+          transform: translate3d(-3px, 0, 0);
+        }
+
+        20%,
+        80% {
+          transform: translate3d(6px, 0, 0);
+        }
+
+        30%,
+        50%,
+        70% {
+          transform: translate3d(-12px, 0, 0);
+        }
+
+        40%,
+        60% {
+          transform: translate3d(12px, 0, 0);
+        }
+      }
+
+      @keyframes yes {
+        from {
+          padding-top: 40px;
+          color: rgba(0, 0, 0, 1);
+        }
+
+        to {
+          padding-top: 5px;
+          color: rgba(0, 0, 0, 0);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1 class="title">PATH FINDER</h1>
+    <div class="input_wrapper">
+      <label for="size_input">map size:</label>
+      <input type="text" id="size_input" />
+      <button class="create button" onclick="createMaze();">Create Maze</button>
+      <button class="start button" onclick="run('regular');">
+        Start - Regular Algorithm
+      </button>
+      <button class="start button" onclick="run('aStar');">Start - A* Algorithm</button>
+    </div>
+    <div class="result_wrapper">
+      <span>Result: </span>
+      <span class="result"></span>
+    </div>
+
+    <div class="container"></div>
+  </body>
+  <script src="maze.js"></script>
+  <script>
+    //최단경로의 지나가는 블럭수를 리턴
+    //경로가 부재시 -1을 리턴
+    class Queue {
+      constructor() {
+        this.arr = [];
+      }
+      getFirst() {
+        return this.arr[0];
+      }
+      isEmpty() {
+        if (this.arr.length === 0) return true;
+        else return false;
+      }
+      enqueue(item) {
+        this.arr.push(item);
+      }
+      dequeue() {
+        return this.arr.shift();
+      }
+      clear() {
+        this.arr = [];
+      }
+    }
+
+    const animationQueue = new Queue();
+    let map, avail, forks, c, currentPath, visited, minimum, successfulPaths, intervalID;
+
+    function createMaze() {
+      map = [];
+      init();
+      document.querySelector('.container').innerHTML = '';
+      const n = document.querySelector('#size_input').value;
+      if (n && Number(n) !== NaN) {
+        generateMaze(Number(n));
+        map[0][0] = 'v';
+      } else {
+        window.alert('1 이상의 숫자를 입력하세요');
+        return;
+      }
+    }
+    function generateMaze(size) {
+      for (i = 0; i < size; i++) {
+        const row = [];
+        for (j = 0; j < size; j++) {
+          if ((i === 0 && j === 0) || (i === size - 1 && j === size - 1)) {
+            row.push(1);
+            continue;
+          }
+          row.push(Math.random() > 0.6 ? 0 : 1);
+          // row.push(1);
+        }
+        map.push(row);
+      }
+      drawMap();
+    }
+
+    function init() {
+      if (intervalID) {
+        clearInterval(intervalID);
+        intervalID = false;
+        setTimeout(() => {
+          init();
+        }, 0);
+        return;
+      }
+      animationQueue.clear();
+      avail = [];
+      forks = [];
+      c = {
+        row: 0,
+        col: 0,
+      };
+      currentPath = [[0, 0]];
+      visited = [[0, 0]];
+      successfulPaths = [];
+    }
+
+    function clearMaze() {
+      map.forEach((row, i) =>
+        row.forEach((col, j) => (map[i][j] = map[i][j] === 'v' ? 1 : map[i][j])),
+      );
+      drawMap();
+    }
+
+    function run(algo) {
+      clearMaze();
+      init();
+      if (algo === 'regular') document.querySelector('.result').textContent = regular();
+      else if (algo === 'aStar') document.querySelector('.result').textContent = aStar();
+
+      startAnimation();
+    }
+
+    function startAnimation() {
+      setInterval(() => {
+        //큐에 대기중인 화면이 있는지 주기적인 체크
+        if (!intervalID && !animationQueue.isEmpty()) {
+          //주기적인 화면 업데이트
+          intervalID = setInterval(() => {
+            updateDisplay();
+            // console.log('current: ' + current);
+          }, 50); //화면업데이트 끝
+        } //if문 끝
+      }, 100); //큐체크 끝
+    }
+
+    function drawMap() {
+      document.querySelector('.container').innerHTML = '';
+      for (row = 0; row < map.length; row++) {
+        for (col = 0; col < map[0].length; col++) {
+          const div = document.createElement('div');
+          div.className = `block row_${row} col_${col}`;
+          div.style.width = 100 / map[0].length + '%';
+          div.style.height = 100 / map.length + '%';
+          if (map[row][col] === 0) div.style.backgroundColor = 'black';
+
+          document.querySelector('.container').append(div);
+        }
+      }
+    }
+
+    function updateDisplay() {
+      if (!animationQueue.isEmpty()) {
+        const highlighted = document.querySelector('.highlight');
+        if (animationQueue.getFirst() === 'yes') {
+          highlighted.classList.add('yes');
+          highlighted.textContent = 'yes!';
+          highlighted.onanimationend = () => {
+            highlighted.classList.remove('yes');
+            highlighted.textContent = '';
+          };
+          animationQueue.dequeue();
+          return;
+        }
+        if (animationQueue.getFirst() === 'nope') {
+          highlighted.classList.add('shake');
+          highlighted.onanimationend = () => highlighted.classList.remove('shake');
+          animationQueue.dequeue();
+          return;
+        }
+
+        ({ current, visited, map } = animationQueue.dequeue());
+        document.querySelectorAll('.block').forEach((e) => {
+          if (e.classList.contains('highlight')) e.classList.remove('highlight');
+          if (e.classList.contains('visited')) e.classList.remove('visited');
+        });
+        document
+          .querySelector(`.row_${current[0]}.col_${current[1]}`)
+          .classList.add('highlight');
+        visited.forEach((e) =>
+          document.querySelector(`.row_${e[0]}.col_${e[1]}`).classList.add('visited'),
+        );
+      }
+      //만약 더이상 큐에 아무것도 없다면
+      else if (animationQueue.isEmpty()) {
+        //성공적인 경로를 찾았다면
+        if (successfulPaths.length > 0) {
+          clearPath();
+          successfulPaths[minimum.index].forEach((e) => {
+            document
+              .querySelector(`.row_${e[0]}.col_${e[1]}`)
+              .classList.add('result_path');
+          });
+          setTimeout(() => {
+            window.alert(`shortest path takes ${minimum.n} steps`);
+          }, 10);
+        } else {
+          //못찾았다면
+          setTimeout(() => {
+            window.alert('no successful path found');
+          }, 50);
+        }
+        clearInterval(intervalID);
+        intervalID = false;
+      }
+    }
+
+    function clearPath() {
+      document.querySelectorAll('.visited').forEach((e) => e.classList.remove('visited'));
+    }
+
+    function regular() {
+      while (true) {
+        enqueueCurr();
+
+        //우측하단 끝에 도달하면 성공적으로 적을 만난것으로 판단, 성공경로로 등록.
+        if (c.row === map.length - 1 && c.col === map[0].length - 1) {
+          //만약 아직 탐색하지 않은 길이 있다면, 일단 성공경로로 등록 후 계속 탐색 - 더이상 갈 곳이 없
+          const temp = currentPath.map((e) => e);
+          successfulPaths.push(temp);
+          animationQueue.enqueue('yes');
+          if (avail.length > 0) {
+            goBackToPrevFork();
+            enqueueCurr();
+            moveToNextAvail();
+          } else break;
+        }
+
+        const currentAvail = [];
+
+        //방향 - 가장 마지막에 저장된 위치를 먼저 이동할 것이기 때문에, 하 또는 우 를 뒤쪽에 탐색
+        //상
+        if (c.row > 0 && map[c.row - 1][c.col] === 1) {
+          currentAvail.push([c.row - 1, c.col]);
+        }
+        //좌
+        if (c.col > 0 && map[c.row][c.col - 1] === 1) {
+          currentAvail.push([c.row, c.col - 1]);
+        }
+        //하
+        if (c.row < map.length - 1 && map[c.row + 1][c.col] === 1) {
+          currentAvail.push([c.row + 1, c.col]);
+        }
+        //우
+        if (c.col < map[0].length - 1 && map[c.row][c.col + 1] === 1) {
+          currentAvail.push([c.row, c.col + 1]);
+        }
+
+        //분기점 기록하기 - 만약 방금 추가된 방향이 두개 이상이면 추후 돌아올 수 있는 분기점으로 저장.
+        if (currentAvail.length > 1) forks.push([c.row, c.col]);
+
+        //길이 막혀있다면
+        if (currentAvail.length === 0) {
+          animationQueue.enqueue('nope');
+          //분기점이 하나라도 있다면 분기점까지 돌아가기 (분기점까지의 길을 경로에서 삭제)
+          if (forks[0] != undefined) {
+            goBackToPrevFork();
+            enqueueCurr();
+            moveToNextAvail();
+            continue;
+          } else break; //분기점이 없다면 경로가 존재하지 않음
+        }
+
+        avail.push(...currentAvail);
+
+        //현재위치 이동
+        moveToNextAvail();
+      }
+
+      // console.log(map, successfulPaths);
+
+      if (successfulPaths.length > 0) {
+        minimum = { n: Number.MAX_SAFE_INTEGER, index: '' };
+        successfulPaths.forEach((path, i) => {
+          if (minimum.n > path.length) {
+            minimum.n = path.length;
+            minimum.index = i;
+          }
+        });
+        return minimum.n;
+      } else return -1;
+    }
+
+    function aStar() {
+      function getHeuristic(pos) {
+        return Math.sqrt((map.length - pos[0]) ** 2 + (map[1].length - pos[1]) ** 2);
+      }
+      while (true) {
+        enqueueCurr();
+
+        //우측하단 끝에 도달하면 성공적으로 적을 만난것으로 판단, 성공경로로 등록.
+        if (c.row === map.length - 1 && c.col === map[0].length - 1) {
+          const temp = currentPath.map((e) => e);
+          successfulPaths.push(temp);
+          animationQueue.enqueue('yes');
+          break;
+        }
+
+        const currentAvail = [];
+        let pos;
+        //방향 - 가장 마지막에 저장된 위치를 먼저 이동할 것이기 때문에, 하 또는 우 를 뒤쪽에 탐색
+        //상
+        if (c.row > 0 && map[c.row - 1][c.col] === 1) {
+          pos = [c.row - 1, c.col];
+          currentAvail.push({
+            pos: pos,
+            score: currentPath.length + 1 + getHeuristic(pos),
+          });
+        }
+        //좌
+        if (c.col > 0 && map[c.row][c.col - 1] === 1) {
+          pos = [c.row, c.col - 1];
+          currentAvail.push({
+            pos: pos,
+            score: currentPath.length + 1 + getHeuristic(pos),
+          });
+        }
+        //하
+        if (c.row < map.length - 1 && map[c.row + 1][c.col] === 1) {
+          pos = [c.row + 1, c.col];
+          currentAvail.push({
+            pos: pos,
+            score: currentPath.length + 1 + getHeuristic(pos),
+          });
+        }
+        //우
+        if (c.col < map[0].length - 1 && map[c.row][c.col + 1] === 1) {
+          pos = [c.row, c.col + 1];
+          currentAvail.push({
+            pos: pos,
+            score: currentPath.length + 1 + getHeuristic(pos),
+          });
+        }
+
+        //길이 막혀있다면
+        if (currentAvail.length === 0) {
+          animationQueue.enqueue('nope');
+          //분기점이 하나라도 있다면 분기점까지 돌아가기 (분기점까지의 길을 경로에서 삭제)
+          if (forks[0] != undefined) {
+            goBackToPrevFork();
+            enqueueCurr();
+            moveAStar();
+            continue;
+          } else break; //분기점이 없다면 경로가 존재하지 않음
+        }
+        //분기점 기록하기 - 만약 방금 추가된 방향이 두개 이상이면 추후 돌아올 수 있는 분기점으로 저장.
+        if (currentAvail.length > 1) forks.push([c.row, c.col]);
+
+        //가장 낮은 hScore 를 기록한 방향으로 이동
+        let min = { pos: undefined, score: Number.MAX_SAFE_INTEGER };
+        let index;
+        currentAvail.forEach((e, i) => {
+          if (e.score < min.score) {
+            min = e;
+            index = i;
+          }
+        });
+        //현재위치 이동
+        // console.log(min.pos)
+        let row, col;
+        [row, col] = min.pos;
+        currentAvail.splice(index, 1);
+        moveAStar([row, col]);
+        avail.push(...currentAvail);
+        // console.log('avail: ' + JSON.stringify(avail) + ' forks: ' + JSON.stringify(forks));
+      }
+
+      // console.log(map, successfulPaths);
+
+      return processResult();
+    }
+    function processResult() {
+      if (successfulPaths.length > 0) {
+        minimum = { n: Number.MAX_SAFE_INTEGER, index: '' };
+        successfulPaths.forEach((path, i) => {
+          if (minimum.n > path.length) {
+            minimum.n = path.length;
+            minimum.index = i;
+          }
+        });
+        return minimum.n;
+      } else return -1;
+    }
+    function goBackToPrevFork() {
+      c.row = forks[forks.length - 1][0];
+      c.col = forks[forks.length - 1][1];
+      while (
+        !(
+          currentPath[currentPath.length - 1][0] === forks[forks.length - 1][0] &&
+          currentPath[currentPath.length - 1][1] === forks[forks.length - 1][1]
+        )
+      ) {
+        //돌아온 길을 다시 방문가능으로 표시
+        map[currentPath[currentPath.length - 1][0]][
+          currentPath[currentPath.length - 1][1]
+        ] = 1;
+        visited.pop();
+        currentPath.pop();
+      }
+      forks.pop();
+    }
+
+    function adjacencyCheck(currentPos, target) {
+      if (currentPos[0] === target[0]) {
+        if (currentPos[1] === target[1]) return console.error('target is the same!');
+        else if (currentPos[1] + 1 === target[1] || currentPos[1] - 1 === target[1])
+          return true;
+      } else if (currentPos[1] === target[1]) {
+        if (currentPos[0] + 1 === target[0] || currentPos[0] - 1 === target[0])
+          return true;
+      }
+      return false;
+    }
+    function moveToNextAvail() {
+      let temp = avail.pop();
+      while (!adjacencyCheck(temp, [c.row, c.col]) && avail.length != 0)
+        temp = avail.pop();
+      if (avail.length === 0 && !adjacencyCheck(temp, [c.row, c.col]))
+        return console.error('no adjacent available');
+      c.row = temp[0];
+      c.col = temp[1];
+      map[c.row][c.col] = 'v';
+      visited.push([c.row, c.col]);
+      currentPath.push([c.row, c.col]);
+      // console.log('current pos: ' + c.row + c.col);
+    }
+
+    function moveAStar(target) {
+      if (target != undefined) {
+        c.row = target[0];
+        c.col = target[1];
+      } else {
+        let temp = avail.pop().pos;
+        while (!adjacencyCheck(temp, [c.row, c.col]) && avail.length != 0)
+          temp = avail.pop().pos;
+        if (avail.length === 0 && !adjacencyCheck(temp, [c.row, c.col]))
+          return console.error('no adjacent available');
+        c.row = temp[0];
+        c.col = temp[1];
+      }
+      map[c.row][c.col] = 'v';
+      visited.push([c.row, c.col]);
+      currentPath.push([c.row, c.col]);
+      // console.log('current pos: ' + c.row + c.col);
+    }
+    function enqueueCurr() {
+      animationQueue.enqueue({
+        current: [c.row, c.col],
+        visited: visited.map((e) => e),
+        map: map.map((e) => e),
+      });
+    }
+
+    // console.log('answer: ' + solution([
+    //   [1, 0, 1, 1, 1],
+    //   [1, 0, 1, 0, 1],
+    //   [1, 0, 1, 1, 1],
+    //   [1, 1, 1, 0, 1],
+    //   [0, 0, 0, 0, 1],
+    // ]) + ' steps'); //11
+    // console.log(
+    //   solution([
+    //     [1, 0, 1, 1, 1],
+    //     [1, 0, 1, 0, 1],
+    //     [1, 0, 1, 1, 1],
+    //     [1, 1, 1, 0, 0],
+    //     [0, 0, 0, 0, 1],
+    //   ])
+    // ); //-1
+  </script>
+</html>

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .outer_wrapper {
+            position: relative;
+        }
+
+        .wrapper {
+            display: flex;
+            text-align: center;
+            width: 90vw;
+            box-sizing: content-box;
+            flex-wrap: wrap;
+            flex-direction: row;
+
+        }
+
+        .row_wrapper {
+            height: 60px;
+            width: 100%;
+            position: relative;
+            justify-content: center;
+
+        }
+
+        .node_wrapper {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+
+        }
+
+        .node {
+            position: absolute;
+            top: 30px;
+            height: 30px;
+            width: 30px;
+            border: 2px black solid;
+            box-sizing: border-box;
+            border-radius: 15%;
+            cursor: pointer;
+            vertical-align: middle;
+            line-height: 30px;
+        }
+
+        .arrow {
+
+
+            box-sizing: border-box;
+            position: absolute;
+            top: 0;
+            padding: 0px;
+            width: 20px;
+            height: 30px;
+            margin: 0;
+
+        }
+
+        .left.arrow {
+            background: linear-gradient(to bottom right, transparent calc(50% - 1px), rgb(0, 0, 0), transparent calc(50% + 1px));
+        }
+
+        .right.arrow {
+            background: linear-gradient(to bottom left, transparent calc(50% - 1px), rgb(0, 0, 0), transparent calc(50% + 1px));
+
+        }
+
+        .line::after {
+
+            content: '';
+            position: absolute;
+            padding: 0;
+            width: 0;
+            height: 0;
+            top: -8px;
+            left: 10px;
+            border-top: 8px solid transparent;
+            border-left: 10px black solid;
+            border-bottom: 8px solid transparent;
+
+        }
+
+        #ask_modal {
+            display: none;
+            position: relative;
+            text-align: center;
+            padding-top: 40px;
+            left: calc((100vw / 2) - 250px);
+            top: 80px;
+            width: 500px;
+            height: 60px;
+            border: 2px black solid;
+            font-size: 1rem;
+        }
+
+        .radio_button_wrapper {
+            text-align: right;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Binary Tree</h1>
+    <form onsubmit="inputData(); return false">
+        <input type="text" id="input_data" autofocus=true>
+        <button type='submit' id="data_creation_button">데이터 생성</button>
+    </form>
+
+    <div class="outer_wrapper">
+        <div class="wrapper">
+
+        </div>
+    </div>
+    <div id="ask_modal">
+        노드를 삭제/추가 하시겠습니까?
+        <button id="modal_delete_button">선택 노드 삭제</button>
+    </div>
+
+</body>
+<script>
+    let binaryTreeData;
+    let targetNode;
+    const dataCreationButton = document.querySelector('#data_creation_button');
+    const dataReverseButton = document.querySelector('#data_reverse_button');
+
+    const askModalDeleteButton = document.querySelector('#modal_delete_button');
+    const askModalAddButton = document.querySelector('#modal_add_button');
+    askModalDeleteButton.addEventListener('click', () => binaryTreeData.remove(targetNode.innerText));
+
+    function inputData() {
+        const inputData = parseInt(document.querySelector('#input_data').value);
+        if (inputData === '') {
+            window.alert('데이터를 입력하세요');
+            return;
+        }
+
+        if (!binaryTreeData) {
+            binaryTreeData = new Tree(inputData);
+            dataCreationButton.innerHTML = '데이터 추가'
+        } else binaryTreeData.add(inputData);
+
+        draw(binaryTreeData.root);
+        document.querySelector('#input_data').value = '';
+    }
+
+    function draw(data) {
+
+        if (!data) {
+            document.querySelector('.wrapper').innerHTML = null;
+            dataCreationButton.innerHTML = '데이터 생성';
+            return;
+        }
+        //items per row setting
+        const itemsPerRow = [0];
+        let wrapperID = 0;
+        const getDepth = function (node, depth = 0) {
+            itemsPerRow[depth] != null ? itemsPerRow[depth]++ : itemsPerRow.push(1);
+            if (node.left) {
+                getDepth(node.left, depth + 1)
+            }
+            if (node.right) {
+                getDepth(node.right, depth + 1)
+            }
+        }
+        getDepth(data);
+
+        //add node elements with wrappers and arrows
+        const itemsPerRowChecker = [...itemsPerRow];
+
+
+        const addNodesDOM = function (node, level = 0, pos = 0, direction = 0) {
+
+
+
+            let html = '';
+            const width = 100 / Math.pow(2, level);
+            const childWidth = width / 2;
+
+            //add row wrapper
+            if (itemsPerRowChecker[level] == itemsPerRow[level]) {
+                html += `<div class='row_wrapper' level=${level}>\n`;
+            }
+            itemsPerRowChecker[level]--;
+
+            //add node wrapper
+            const nodeWrapperHTML = `<div class='node_wrapper' id='${wrapperID}' style='width: ${width}%; left: ${width * pos}%' level=${level}>\n`;
+            html += nodeWrapperHTML;
+            //add arrow
+            if (direction < 0) {
+                html += `<div class='left arrow' id='${wrapperID}' style='width: 50%; left: 50%;' level=${level}></div>\n`;
+                wrapperID++;
+            }
+            if (direction > 0) {
+                html += `<div class='right arrow' id='${wrapperID}' style='width: 50%; left: 0%;' level=${level}></div>\n`
+                wrapperID++;
+            }
+            //add node and close row wrapper if it's the last node to add
+            const nodeHTML = `<div class='node'>${node.data}</div></div>`;
+            if (itemsPerRowChecker[level] === 0) {
+                html += nodeHTML + `</div>`;
+            } else {
+                html += nodeHTML;
+            }
+
+            if (node.left) html += addNodesDOM(node.left, level + 1, pos * 2, -1);
+            if (node.right) html += addNodesDOM(node.right, level + 1, pos * 2 + 1, 1);
+
+            return html;
+        }
+
+
+
+        const dataHTML = addNodesDOM(data);
+
+
+        document.querySelector('.wrapper').innerHTML = dataHTML;
+
+
+        //re-rendering by order
+        (() => {
+            const rows = document.querySelectorAll('.row_wrapper');
+            const nodeWrappers = document.querySelectorAll('.node_wrapper');
+            const arrows = document.querySelectorAll('.arrow');
+
+            rows.forEach((rows) => { document.querySelector('.wrapper').appendChild(rows) });
+
+            arrows.forEach((arrow) => {
+                const arrowID = arrow.getAttribute('id');
+                nodeWrappers.forEach((node) => {
+                    if (node.getAttribute('id') === arrowID) node.appendChild(arrow);
+                })
+            })
+            // console.log(dataHTML, "\n\n", document.querySelector('.wrapper').innerHTML);
+
+            nodeWrappers.forEach((node) => {
+                const node_level = node.getAttribute('level');
+                rows.forEach((wrapper) => {
+                    if (wrapper.getAttribute('level') === node_level) wrapper.appendChild(node);
+                })
+            })
+
+
+        })();
+
+
+        console.log(binaryTreeData);
+        const nodes = document.querySelectorAll('.node');
+        nodes.forEach((i) => i.addEventListener('click', (e) => ask(e)));
+    }
+
+    function ask(event) {
+        document.querySelector('#ask_modal').style = 'display: block';
+        targetNode = event.target;
+
+    }
+    class Node {
+        constructor(data, left, right) {
+            this.data = data;
+            this.left = null;
+            this.right = null;
+        }
+    }
+
+    class Tree {
+        constructor(data) {
+            this.root = new Node(data)
+        }
+
+        add(dataToAdd) {
+            let node = this.root;
+            const recursiveSearch = function (node, dataToAdd) {
+                if (dataToAdd < node.data) {
+                    if (node.left == null)
+                        node.left = new Node(dataToAdd);
+                    else recursiveSearch(node.left, dataToAdd);
+                } else if (dataToAdd > node.data) {
+                    if (node.right == null)
+                        node.right = new Node(dataToAdd);
+                    else recursiveSearch(node.right, dataToAdd);
+                } else {
+                    alert(dataToAdd + ' is already in the tree');
+                    return;
+                }
+            }
+            recursiveSearch(node, dataToAdd);
+            draw(this.root);
+        }
+
+        remove(target) {
+
+            const recursive = function (node, target) {
+                console.log(node, target);
+                if (node.data != target) {
+                    if (node.data < target) node.right = recursive(node.right, target)
+                    else if (node.data > target) node.left = recursive(node.left, target);
+                    return node;
+                }
+                if (node.data == target) {
+                    if (!node.left && !node.right) {
+                        return null;
+                    }
+                    else if (node.left && node.right) {
+                        let tempNodeForReplacement = node.right;
+                        while (tempNodeForReplacement.left) tempNodeForReplacement = tempNodeForReplacement.left;
+                        node.data = tempNodeForReplacement.data;
+                        node.right = recursive(node.right, tempNodeForReplacement.data);
+                        return node;
+                    } else if (node.left) return node.left
+                    else return node.right;
+                }
+            }
+            this.root = recursive(this.root, target);
+            draw(this.root);
+            document.querySelector('#ask_modal').style = 'display: none';
+
+
+        }
+    }
+
+</script>
+
+</html>

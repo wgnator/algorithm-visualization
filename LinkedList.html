@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <style>
+      .wrapper {
+        display: flex;
+        width: 90vw;
+        height: 30px;
+        box-sizing: content-box;
+      }
+
+      .node {
+        width: 30px;
+        height: 30px;
+        border: 3px black solid;
+        box-sizing: content-box;
+      }
+
+      .line {
+        box-sizing: border-box;
+        position: relative;
+        top: 16.5px;
+        padding: 0px;
+        width: 20px;
+        margin: 0;
+        height: 0px;
+        border: 2px solid black;
+      }
+      .line::after {
+        content: '';
+        position: absolute;
+        padding: 0;
+        width: 0;
+        height: 0;
+        top: -8px;
+        left: 10px;
+        border-top: 8px solid transparent;
+        border-left: 10px black solid;
+        border-bottom: 8px solid transparent;
+      }
+
+      #ask_modal {
+        display: none;
+        position: relative;
+        left: calc((100vw / 2) - 150px);
+        top: 100px;
+        width: 300px;
+        height: 300px;
+        border: 2px black solid;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Linked List</h1>
+    <input type="text" id="input_data" />
+    <button type="submit" id="data_creation_button" onclick="createData()">
+      데이터 생성
+    </button>
+    <button type="submit" id="data_reverse_button" onclick="reverse(linkedListData)">
+      데이터 뒤집기
+    </button>
+    <div class="wrapper"></div>
+    <div id="ask_modal">
+      노드를 삭제/추가 하시겠습니까?
+      <button id="modal_delete_button">선택 노드 삭제</button>
+      <button id="modal_add_button">선택 노드 뒤에 추가</button>
+      <input type="text" id="data_to_add_between" />
+    </div>
+  </body>
+  <script>
+    let linkedListData;
+    let targetNode;
+    const input = document.querySelector('#input_data');
+    const dataCreationButton = document.querySelector('#data_creation_button');
+    const dataReverseButton = document.querySelector('#data_reverse_button');
+
+    const askModalDeleteButton = document.querySelector('#modal_delete_button');
+    const askModalAddButton = document.querySelector('#modal_add_button');
+    askModalDeleteButton.addEventListener('click', () => deleteNode(targetNode));
+    askModalAddButton.addEventListener('click', () => addNodeBetween(targetNode));
+
+    function createData() {
+      const inputData = input.value;
+      if (inputData === null) {
+        window.alert('데이터를 입력하세요');
+        return;
+      }
+
+      if (!linkedListData) {
+        linkedListData = new Node(inputData);
+        dataCreationButton.innerHTML = '데이터 추가';
+      } else add(inputData);
+
+      draw(linkedListData);
+      input.value = '';
+    }
+
+    function draw(dataToDraw) {
+      let dataHTML = '';
+      let node = dataToDraw;
+      console.log(linkedListData);
+      let i = 0;
+      while (linkedListData) {
+        dataHTML += `<div class='node no_${i}'>${node.data}</div>\n`;
+        if (node.next != null) {
+          dataHTML += `<div class='line'></div>\n`;
+        } else break;
+        node = node.next;
+        i++;
+      }
+      document.querySelector('.wrapper').innerHTML = dataHTML;
+
+      const nodes = document.querySelectorAll('.node');
+      nodes.forEach((i) => i.addEventListener('click', (e) => ask(e)));
+    }
+
+    function ask(event) {
+      document.querySelector('#ask_modal').style = 'display: block';
+      targetNode = event.target;
+    }
+    class Node {
+      constructor(data, next) {
+        this.data = data;
+        this.next = null;
+      }
+    }
+
+    function add(dataToAdd) {
+      let node = linkedListData;
+      while (node.next) {
+        node = node.next;
+      }
+      node.next = new Node(dataToAdd);
+    }
+
+    function reverse(curr) {
+      if (!curr) {
+        window.alert('생성된 데이터가 없습니다');
+        return;
+      }
+      let prev, next;
+      while (curr) {
+        if (!prev) {
+          prev = curr;
+          curr = curr.next;
+
+          prev.next = null;
+        } else {
+          next = curr.next;
+          curr.next = prev;
+          prev = curr;
+          curr = next;
+        }
+      }
+      linkedListData = prev;
+      draw(linkedListData);
+    }
+
+    function deleteNode(target) {
+      const targetNodeNo = target.classList[1].slice(3);
+      let node = linkedListData;
+      if (node.next && node.next.next) {
+        for (i = 0; i < targetNodeNo - 1; i++) {
+          node = node.next;
+        }
+        node.next = node.next.next;
+      } else if (node.next) {
+        node = node.next;
+      } else {
+        linkedListData = null;
+        dataCreationButton.innerHTML = '데이터 생성';
+      }
+
+      draw(linkedListData);
+      document.querySelector('#ask_modal').style = 'display: none';
+    }
+
+    function addNodeBetween(target) {
+      const targetNodeNo = target.classList[1].slice(3);
+      const dataToAdd = document.querySelector('#data_to_add_between').value;
+      const temp = {};
+      temp.data = dataToAdd;
+      let targetNode = linkedListData;
+      for (i = 0; i < targetNodeNo; i++) {
+        targetNode = targetNode.next;
+      }
+      temp.next = targetNode.next;
+      console.log(temp);
+      targetNode.next = temp;
+      draw(linkedListData);
+      document.querySelector('#ask_modal').style = 'display: none';
+      document.querySelector('#data_to_add_between').value = null;
+    }
+  </script>
+</html>
